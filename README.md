@@ -1,5 +1,7 @@
 # Robyn + LlamaIndex Analysis POC
 
+<img src="img/2e94bba9-41ae-4d64-829f-a6c04d771813.png" alt="Robyn + LlamaIndex" width="600">
+
 This is a proof of concept application that combines Robyn (a fast Python web framework) with LlamaIndex for document analysis and question answering. It also features a GraphQL API for querying documents.
 
 ## Setup
