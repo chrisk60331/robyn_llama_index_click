@@ -1,6 +1,6 @@
 # Robyn + LlamaIndex Analysis POC
 
-This is a proof of concept application that combines Robyn (a fast Python web framework) with LlamaIndex for document analysis and question answering.
+This is a proof of concept application that combines Robyn (a fast Python web framework) with LlamaIndex for document analysis and question answering. It also features a GraphQL API for querying documents.
 
 ## Setup
 
@@ -24,14 +24,14 @@ cp .env.example .env
 
 4. Run the setup command:
 ```bash
-python -m cli setup
+uv run cli.py setup
 ```
 
 ## Running the Application
 
 Start the server:
 ```bash
-python -m cli serve
+uv run cli.py serve
 ```
 
 The server will start on `http://localhost:8000` by default.
@@ -42,16 +42,16 @@ The application provides a CLI interface for easy interaction:
 
 ```bash
 # Start the server
-python -m cli serve [--port PORT] [--host HOST]
+uv run cli.py serve [--port PORT] [--host HOST] [--dev]
 
 # Upload a document
-python -m cli upload path/to/your/document.pdf
+uv run cli.py upload path/to/your/document.pdf
 
 # Query the documents
-python -m cli query "What are the main points in the document?"
+uv run cli.py query "What are the main points in the document?"
 
 # Setup the environment
-python -m cli setup
+uv run cli.py setup
 ```
 
 ## API Endpoints
@@ -60,12 +60,56 @@ python -m cli setup
 - `POST /query`: Ask questions about the uploaded documents
 - `GET /health`: Health check endpoint
 
+## GraphQL Interface
+
+The application includes a GraphQL API for more flexible document querying:
+
+- GraphQL IDE: `http://localhost:8000/graphql`
+- GraphQL Endpoint: `POST http://localhost:8000/graphql`
+
+### Example GraphQL Queries
+
+```graphql
+# Check system health
+{
+  health {
+    status
+  }
+}
+
+# List all uploaded documents
+{
+  documents {
+    name
+    size
+  }
+}
+
+# Query documents
+{
+  query(question: "What are the main points in the document?") {
+    response
+  }
+}
+```
+
 ## Development
 
 ### Running Tests
 
 ```bash
-pytest
+uv run -m pytest
+```
+
+### Running Test Coverage
+
+```bash
+# Run tests with coverage
+uv run -m pytest --cov=. --cov-report=term-missing
+
+# Generate HTML coverage report
+uv run -m pytest --cov=. --cov-report=html
+# Report will be available in htmlcov/index.html
 ```
 
 ### Project Structure
@@ -73,21 +117,26 @@ pytest
 ```
 .
 ├── cli.py              # CLI interface
-├── main.py            # Main application
-├── pyproject.toml     # Project configuration and dependencies
-├── tests/             # Test directory
-│   └── test_main.py   # Application tests
-└── data/              # Directory for uploaded documents
+├── main.py             # Main application
+├── schema.py           # GraphQL schema definition
+├── pyproject.toml      # Project configuration and dependencies
+├── tests/              # Test directory
+│   ├── test_main.py    # Application tests
+│   ├── test_cli.py     # CLI tests
+│   └── test_graphql.py # GraphQL tests
+└── data/               # Directory for uploaded documents
 ```
 
 ## Example Usage
 
 1. Upload a document:
 ```bash
-python -m cli upload path/to/your/document.pdf
+uv run cli.py upload path/to/your/document.pdf
 ```
 
 2. Query the documents:
 ```bash
-python -m cli query "What are the main points in the document?"
-``` 
+uv run cli.py query "What are the main points in the document?"
+```
+
+3. Access the GraphQL interface at `http://localhost:8000/graphql` in your browser 

@@ -8,7 +8,15 @@ from llama_index.core import Settings
 from llama_index.llms.openai import OpenAI
 import traceback
 import io
-from multipart import MultipartParser
+import python_multipart
+from python_multipart import MultipartParser
+import json
+
+# Import GraphQL dependencies
+import strawberry
+# Remove the missing import for graphiql
+# import strawberry.utils.graphiql
+from schema import schema, index as schema_index
 
 # Load environment variables
 load_dotenv()
@@ -51,6 +59,10 @@ async def upload_document(request: Request) -> Response:
         global index
         documents = SimpleDirectoryReader("data").load_data()
         index = VectorStoreIndex.from_documents(documents)
+        
+        # Update the schema's index reference
+        global schema_index
+        schema_index = index
 
         return {
             "status_code": 200,
@@ -88,6 +100,99 @@ async def query_documents(request: Request) -> Response:
         }
     except Exception as e:
         return {"status_code": 500, "body": str(e), "type": "text"}
+
+# GraphQL endpoints
+@app.get("/graphql", const=True)
+async def graphql_ide() -> Response:
+    """GraphQL IDE endpoint."""
+    # Replace the use of strawberry.utils.graphiql
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>GraphiQL</title>
+        <style>
+            body {
+                height: 100%;
+                margin: 0;
+                width: 100%;
+                overflow: hidden;
+            }
+            #graphiql {
+                height: 100vh;
+            }
+        </style>
+        <link rel="stylesheet" href="https://unpkg.com/graphiql/graphiql.min.css" />
+    </head>
+    <body>
+        <div id="graphiql"></div>
+        <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+        <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+        <script src="https://unpkg.com/graphiql/graphiql.min.js"></script>
+        <script>
+            const fetcher = GraphiQL.createFetcher({
+                url: '/graphql',
+            });
+            ReactDOM.render(
+                React.createElement(GraphiQL, { fetcher }),
+                document.getElementById('graphiql'),
+            );
+        </script>
+    </body>
+    </html>
+    """
+    return {"status_code": 200, "body": html, "type": "html"}
+
+@app.post("/graphql")
+async def graphql_endpoint(request: Request) -> Response:
+    """GraphQL query endpoint."""
+    try:
+        body = request.json()
+        query = body.get("query")
+        variables = body.get("variables")
+        context_value = {"request": request}
+        root_value = body.get("root_value")
+        operation_name = body.get("operation_name")
+
+        data = await schema.execute(
+            query,
+            variables,
+            context_value,
+            root_value,
+            operation_name,
+        )
+
+        # Convert GraphQLError objects to dictionaries to make them serializable
+        errors = None
+        if data.errors:
+            errors = [
+                {
+                    "message": str(error),
+                    "locations": [{"line": loc.line, "column": loc.column} for loc in error.locations] if hasattr(error, "locations") else None,
+                    "path": error.path if hasattr(error, "path") else None,
+                }
+                for error in data.errors
+            ]
+
+        response_data = {
+            "data": data.data,
+            **({"errors": errors} if errors else {}),
+            **({"extensions": data.extensions} if data.extensions else {})
+        }
+
+        # Use Robyn's dictionary return format instead of Response object
+        return {
+            "status_code": 200, 
+            "body": response_data, 
+            "type": "json"
+        }
+    except Exception as e:
+        traceback.print_exc()
+        return {
+            "status_code": 500, 
+            "body": {"error": str(e)}, 
+            "type": "json"
+        }
 
 if __name__ == "__main__":
     import argparse
